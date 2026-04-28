@@ -31,7 +31,10 @@
   "main": "./dist/index.js",
   "files": [
     "dist",
+    "!dist/__tests__",
+    "!dist/**/*.test.*",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -42,7 +45,7 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
-    "test": "node --test dist/**/*.test.js",
+    "test": "tsc && node --test dist/__tests__/*.test.js",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },

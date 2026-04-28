@@ -2,6 +2,8 @@
  * Thin axios-based HTTP client for the Cobalt Intelligence API.
  */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import http from 'http';
+import https from 'https';
 import { getApiKey, getEndpoint } from './config';
 import { CobaltError } from './errors';
 
@@ -35,6 +37,10 @@ export class CobaltClient {
         'x-api-key': apiKey,
         'User-Agent': `cobalt-cli/${require('../../package.json').version} node/${process.version}`,
       },
+      // Disable keep-alive so the CLI process exits promptly after the request
+      // completes — otherwise lingering sockets hold the event loop open.
+      httpAgent: new http.Agent({ keepAlive: false }),
+      httpsAgent: new https.Agent({ keepAlive: false }),
       // Do not throw on non-2xx; we handle status ourselves so error envelopes
       // surface API-provided messages (rate limit, validation, etc).
       validateStatus: () => true,
