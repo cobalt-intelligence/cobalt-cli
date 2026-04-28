@@ -16,7 +16,19 @@ export function registerAuthCommands(program: Command): void {
     .action(async (opts: { key?: string }) => {
       const g = getGlobals(auth);
       let key = opts.key;
-      if (!key) key = await prompt('Paste your Cobalt API key: ', { mask: true });
+      if (!key) {
+        // Show the user where to get a key BEFORE prompting — otherwise an
+        // unfamiliar user is staring at "Paste your Cobalt API key:" with no
+        // idea where to find one.
+        const u = ONBOARDING_URLS;
+        process.stderr.write(
+          `\nDon't have an API key yet?\n` +
+          `  Sign up:    ${u.signup}\n` +
+          `  Dashboard:  ${u.keys}\n` +
+          `  Docs:       ${u.docs}\n\n`
+        );
+        key = await prompt('Paste your Cobalt API key: ', { mask: true });
+      }
       if (!key) {
         emit(
           envelope(null, {}, {
