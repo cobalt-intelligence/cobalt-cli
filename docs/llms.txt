@@ -5,8 +5,8 @@
 ## Endpoints
 
 - API base: `https://apigateway.cobaltintelligence.com/`
-- Dashboard / API keys: `https://www.cobaltintelligence.com/dashboard`
-- Sign up (free trial, no card): `https://www.cobaltintelligence.com/sign-up`
+- Dashboard / API keys: `https://app.cobaltintelligence.com/dashboard/quickStart`
+- Sign up (free trial, no card): `https://app.cobaltintelligence.com/create-account`
 - Documentation: `https://documentation.cobaltintelligence.com`
 - Support: `support@cobaltintelligence.com`
 
