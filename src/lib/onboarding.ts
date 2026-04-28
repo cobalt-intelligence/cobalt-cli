@@ -9,8 +9,8 @@
  *   COBALT_SIGNUP_URL, COBALT_KEY_URL, COBALT_DOCS_URL, COBALT_SUPPORT_EMAIL
  */
 export const ONBOARDING_URLS = {
-  signup: process.env.COBALT_SIGNUP_URL || 'https://www.cobaltintelligence.com/sign-up',
-  keys: process.env.COBALT_KEY_URL || 'https://www.cobaltintelligence.com/dashboard',
+  signup: process.env.COBALT_SIGNUP_URL || 'https://app.cobaltintelligence.com/create-account',
+  keys: process.env.COBALT_KEY_URL || 'https://app.cobaltintelligence.com/dashboard/quickStart',
   docs: process.env.COBALT_DOCS_URL || 'https://documentation.cobaltintelligence.com',
   support: process.env.COBALT_SUPPORT_EMAIL || 'support@cobaltintelligence.com',
 };
@@ -27,21 +27,21 @@ export interface OnboardingHint {
 const stepsNoKey = (u: typeof ONBOARDING_URLS): string =>
   [
     'You need a Cobalt Intelligence API key to use this tool. Ask your human to:',
-    `  1. Sign up (free trial, no card): ${u.signup}`,
-    `  2. Copy the API key from the dashboard: ${u.keys}`,
+    '  1. Sign up (free trial, no card): ' + u.signup,
+    '  2. Copy the API key from the dashboard: ' + u.keys,
     '  3. Save it locally with one of:',
-    '       cobalt auth login --key <PASTE_KEY>',
-    '       export COBALT_API_KEY=<PASTE_KEY>',
+    '       cobalt auth login --key <paste-the-key>',
+    '       (or set the ' + 'COBALT_API_KEY' + ' environment variable to the key)',
     '  4. Verify with: cobalt auth status',
-    `Docs: ${u.docs}`,
+    'Docs: ' + u.docs,
   ].join('\n');
 
 const stepsBadKey = (u: typeof ONBOARDING_URLS): string =>
   [
     'The configured Cobalt API key was rejected. Ask your human to:',
-    `  1. Confirm the key on the dashboard: ${u.keys}`,
-    '  2. Re-save it: cobalt auth login --key <PASTE_KEY>',
-    `  3. If the key looks right, contact ${u.support} — the account may be suspended or out of credit.`,
+    '  1. Confirm the key on the dashboard: ' + u.keys,
+    '  2. Re-save it: cobalt auth login --key YOUR_KEY_HERE',
+    '  3. If the key looks right, contact ' + u.support + ' — the account may be suspended or out of credit.',
   ].join('\n');
 
 export function onboardingHint(reason: 'NO_API_KEY' | 'UNAUTHORIZED'): OnboardingHint {
