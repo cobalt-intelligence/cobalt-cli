@@ -63,6 +63,57 @@ describe('CLI integration', () => {
     assert.equal(r.status, 4);
     const env = JSON.parse(r.stdout);
     assert.equal(env.error.code, 'NO_API_KEY');
+    // Onboarding hint must be present and machine-readable so AI agents
+    // can hand actionable steps to their human.
+    assert.ok(env.error.details?.onboarding, 'onboarding hint missing');
+    const o = env.error.details.onboarding;
+    assert.match(o.signup_url, /^https?:\/\//);
+    assert.match(o.key_url, /^https?:\/\//);
+    assert.match(o.docs_url, /^https?:\/\//);
+    assert.match(o.human_action, /sign up/i);
+    assert.match(o.human_action, /cobalt auth login/);
+  });
+
+  it('exits 4 with UNAUTHORIZED + onboarding hint when API rejects the key', async () => {
+    server.on('/v1/search', () => ({ status: 401, body: { message: 'bad key' } }));
+    const r = await run(['sos', 'search', 'Acme', '--state', 'UT', '--format', 'json'], {
+      COBALT_API_KEY: 'wrong',
+      COBALT_ENDPOINT: server.url,
+    });
+    assert.equal(r.status, 4);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.error.code, 'UNAUTHORIZED');
+    assert.ok(env.error.details?.onboarding, 'onboarding hint missing');
+    assert.match(env.error.details.onboarding.human_action, /rejected/i);
+  });
+
+  it('auth urls prints onboarding URLs for AI agents', async () => {
+    const r = await run(['auth', 'urls', '--format', 'json']);
+    assert.equal(r.status, 0);
+    const env = JSON.parse(r.stdout);
+    assert.match(env.data.signup, /^https?:\/\//);
+    assert.match(env.data.keys, /^https?:\/\//);
+    assert.match(env.data.docs, /^https?:\/\//);
+    assert.match(env.data.human_action, /cobalt auth login/);
+  });
+
+  it('auth urls honors COBALT_SIGNUP_URL override', async () => {
+    const r = await run(['auth', 'urls', '--format', 'json'], {
+      COBALT_SIGNUP_URL: 'https://staging.example.com/signup',
+    });
+    assert.equal(r.status, 0);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.data.signup, 'https://staging.example.com/signup');
+  });
+
+  it('auth setup in non-TTY without --key emits SETUP_REQUIRED envelope and exits 0', async () => {
+    const r = await run(['auth', 'setup', '--no-open', '--format', 'json'], {
+      COBALT_API_KEY: '',
+    });
+    assert.equal(r.status, 0);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.error.code, 'SETUP_REQUIRED');
+    assert.ok(env.error.details?.onboarding);
   });
 
   it('exits 5 with BAD_REQUEST when neither query nor identity flags are given', async () => {

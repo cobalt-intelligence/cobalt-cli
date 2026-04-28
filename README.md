@@ -42,18 +42,47 @@ Requires Node.js 18+.
 
 ## Authentication
 
-Get your API key from the [Cobalt dashboard](https://cobaltintelligence.com), then either:
+Get your API key from the [Cobalt dashboard](https://www.cobaltintelligence.com/dashboard), then either:
 
 ```bash
 cobalt auth login            # interactive prompt, stored under your OS user config
 # or
 export COBALT_API_KEY="***"   # env var wins; ideal for CI / agents
+# or run the full guided flow (opens browser, prompts, saves, verifies):
+cobalt auth setup
 ```
 
 Verify:
 
 ```bash
 cobalt auth status
+```
+
+## For AI agents
+
+This CLI is built for AI coding agents (Claude Code, Cursor, Cline, Codex, Aider). Two design choices make it easy:
+
+1. **Stable JSON envelopes.** Every command emits `{ data, meta, error }` with stable error codes and exit codes — agents can branch on `error.code` directly instead of parsing prose.
+2. **Human-action hints.** When auth fails, the error envelope includes a structured `error.details.onboarding` object with `signup_url`, `key_url`, `docs_url`, and a `human_action` string the agent can read aloud to its human verbatim. No more hallucinated signup URLs.
+
+Quick reference for an agent that hits a missing key:
+
+```bash
+# Print onboarding URLs + the human-action script (no error required):
+cobalt auth urls --format json
+```
+
+Example response:
+
+```json
+{
+  "data": {
+    "signup": "https://www.cobaltintelligence.com/sign-up",
+    "keys": "https://www.cobaltintelligence.com/dashboard",
+    "docs": "https://documentation.cobaltintelligence.com",
+    "human_action": "You need a Cobalt Intelligence API key to use this tool. Ask your human to:\n  1. Sign up (free trial, no card): https://www.cobaltintelligence.com/sign-up\n  ..."
+  }
+}
 ```
 
 ## What if my CLI crashes or times out mid-search?

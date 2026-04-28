@@ -6,7 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-28
+
+### Added
+- **AI-agent onboarding hints.** Auth-related error envelopes (`NO_API_KEY`, `UNAUTHORIZED`) now include a structured `error.details.onboarding` object with `signup_url`, `key_url`, `docs_url`, `support_email`, and a multi-line `human_action` string. AI agents (Claude, Cursor, Cline, Codex, etc.) can read `human_action` verbatim to their human and stop hallucinating signup URLs.
+- `cobalt auth setup` — interactive onboarding. Opens the signup page in the user's browser, prompts for the API key (masked), saves it, and confirms. In non-TTY contexts (when an AI agent is driving), it emits a `SETUP_REQUIRED` envelope with the same human-action steps and exits 0 instead of hanging.
+- `cobalt auth urls` — prints signup, dashboard, docs, support email, and the human-action hint as a clean JSON envelope. Useful for AI agents that want to surface onboarding info without intentionally triggering an auth error.
+- Environment overrides: `COBALT_SIGNUP_URL`, `COBALT_KEY_URL`, `COBALT_DOCS_URL`, `COBALT_SUPPORT_EMAIL` so staging/internal hosts can swap the URLs without a code change.
+- 4 new tests covering onboarding hint shape, env overrides, and non-TTY setup behavior (38 tests total).
+
+### Why
+The biggest friction point for AI-agent adoption is the moment the agent hits a missing/invalid API key. Without a structured handoff field, the agent has to guess what to tell its human — and often hallucinates URLs. This release gives every agent a single field (`error.details.onboarding.human_action`) it can read out loud verbatim.
+
 ## [0.2.0] - 2026-04-28
+
 
 ### Added
 - `cobalt sos pending` — list retryIds the CLI has saved on disk but not yet completed.
