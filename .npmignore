@@ -1,0 +1,8 @@
+src/
+tsconfig.json
+.github/
+.gitignore
+*.tsbuildinfo
+node_modules/
+coverage/
+examples/
