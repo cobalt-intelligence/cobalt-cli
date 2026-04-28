@@ -16,11 +16,12 @@ interface RunResult {
  * Async spawn — required because spawnSync would block the parent event loop,
  * preventing our in-process fake HTTP server from accepting connections.
  */
-function run(args: string[], env: Record<string, string> = {}): Promise<RunResult> {
+function run(args: string[], env: Record<string, string> = {}, opts: { closeStdin?: boolean } = {}): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [BIN, ...args], {
       env: { ...process.env, ...env },
     });
+    if (opts.closeStdin) proc.stdin.end();
     let stdout = '';
     let stderr = '';
     // Watchdog must be cleared on close/error so it doesn't keep the test
@@ -85,6 +86,14 @@ describe('CLI integration', () => {
     assert.equal(env.error.code, 'UNAUTHORIZED');
     assert.ok(env.error.details?.onboarding, 'onboarding hint missing');
     assert.match(env.error.details.onboarding.human_action, /rejected/i);
+  });
+
+  it('auth login (no --key, empty stdin) prints onboarding URLs to stderr before prompting', async () => {
+    const r = await run(['auth', 'login', '--format', 'json'], { COBALT_API_KEY: '' }, { closeStdin: true });
+    // No key on stdin → the masked prompt gets EOF and exits with NO_KEY_PROVIDED.
+    // The important assertion is that stderr contained the URLs before the prompt.
+    assert.match(r.stderr, /Sign up:.*cobaltintelligence/);
+    assert.match(r.stderr, /Dashboard:.*cobaltintelligence/);
   });
 
   it('auth urls prints onboarding URLs for AI agents', async () => {

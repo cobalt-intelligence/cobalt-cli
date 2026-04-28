@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-28
+
+### Fixed
+- `cobalt auth login` (interactive, no `--key`) now prints the signup URL, dashboard URL, and docs URL to stderr **before** showing the masked prompt. Previously, a first-time user was staring at "Paste your Cobalt API key:" with no clue where to find one. The hint matches what `cobalt auth setup` and the auth-error onboarding payload already showed.
+
 ## [0.3.0] - 2026-04-28
 
 ### Added
