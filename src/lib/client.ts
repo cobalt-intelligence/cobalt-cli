@@ -6,6 +6,7 @@ import http from 'http';
 import https from 'https';
 import { getApiKey, getEndpoint } from './config';
 import { CobaltError } from './errors';
+import { onboardingHint } from './onboarding';
 
 export interface ClientOptions {
   apiKey?: string;
@@ -23,7 +24,8 @@ export class CobaltClient {
     if (!apiKey) {
       throw new CobaltError(
         'NO_API_KEY',
-        'No API key found. Run `cobalt auth login` or set COBALT_API_KEY.'
+        'No API key found. Run `cobalt auth login` or set COBALT_API_KEY.',
+        { onboarding: onboardingHint('NO_API_KEY') }
       );
     }
     const endpoint = opts.endpoint || getEndpoint();
@@ -74,7 +76,7 @@ export class CobaltClient {
     }
 
     if (res.status === 401 || res.status === 403) {
-      throw new CobaltError('UNAUTHORIZED', `API key rejected (${res.status}). Check \`cobalt auth status\`.`, { status: res.status, body: res.data });
+      throw new CobaltError('UNAUTHORIZED', `API key rejected (${res.status}). Check \`cobalt auth status\`.`, { status: res.status, body: res.data, onboarding: onboardingHint('UNAUTHORIZED') });
     }
     if (res.status === 429) {
       const retry = Number(res.headers['retry-after']) || undefined;

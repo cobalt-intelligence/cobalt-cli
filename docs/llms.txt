@@ -1,0 +1,76 @@
+# Cobalt Intelligence
+
+> Cobalt Intelligence provides business entity data sourced live from US Secretary of State offices and other authoritative registries. Common uses: KYB (know-your-business), lender underwriting, fraud detection, sales prospecting, and registered-agent lookup. Data is normalized across 50+ jurisdictions and served via REST API, a TypeScript SDK, and a CLI.
+
+## Endpoints
+
+- API base: `https://apigateway.cobaltintelligence.com/`
+- Dashboard / API keys: `https://www.cobaltintelligence.com/dashboard`
+- Sign up (free trial, no card): `https://www.cobaltintelligence.com/sign-up`
+- Documentation: `https://documentation.cobaltintelligence.com`
+- Support: `support@cobaltintelligence.com`
+
+## CLI for AI agents
+
+Install:
+
+```bash
+npm install -g @cobaltintelligence/cli
+# or
+npx @cobaltintelligence/cli --help
+```
+
+Authenticate:
+
+```bash
+cobalt auth setup            # guided, opens browser
+# or
+export COBALT_API_KEY="..."  # CI / agent-friendly
+```
+
+Programmatic onboarding hints (for agents that need to ask a human for a key):
+
+```bash
+cobalt auth urls --format json
+```
+
+This returns `signup_url`, `key_url`, `docs_url`, and a `human_action` string the agent can read verbatim.
+
+## Core capabilities
+
+- `cobalt sos search --name <name> --state <2-letter>` — Secretary of State business search
+- `cobalt sos get --id <id> --state <state>` — full filing record
+- `cobalt sos retry <retryId>` — recover a long-running search by retryId
+- `cobalt sos pending` — list retryIds the CLI has saved on disk
+- `cobalt ofac screen --name <name>` — OFAC sanctions screen
+- `cobalt tin verify --tin <tin> --name <legal-name>` — TIN matching
+- `cobalt full-verification start|status|wait` — 50-state verification
+
+## Output contract
+
+Every command emits a stable JSON envelope:
+
+```json
+{ "data": { ... }, "meta": { ... }, "error": null }
+```
+
+On failure, `error` is `{ code, message, details, retry_after_seconds? }`. Stable error codes:
+
+- `NO_API_KEY` (exit 4) — missing credential; `error.details.onboarding` contains the human-action steps
+- `UNAUTHORIZED` (exit 4) — credential rejected; `error.details.onboarding` contains the recovery steps
+- `RATE_LIMITED` (exit 3) — includes `retry_after_seconds`
+- `TIMEOUT` (exit 6) — includes `retryId` if one was issued
+- `BAD_REQUEST` (exit 5), `NOT_FOUND` (exit 2), `SERVER_ERROR` (exit 8), `NETWORK_ERROR` (exit 7)
+
+## Billing & retryId safety
+
+Every SOS search consumes a credit even if the API falls back to a `retryId`. The CLI auto-persists every retryId to `~/.config/cobalt-cli-nodejs/pending/<retryId>.json` *before* polling begins, so a crash, timeout, or Ctrl+C never loses a paid-for result. Use `cobalt sos retry <retryId>` to recover.
+
+## MCP server
+
+`@cobaltintelligence/mcp-server` (coming soon) — wraps the same endpoints as MCP tools for direct use inside Claude Desktop, Cursor, Cline, and other MCP-aware clients.
+
+## Repository
+
+- CLI source: https://github.com/cobalt-intelligence/cobalt-cli
+- npm: https://www.npmjs.com/package/@cobaltintelligence/cli
