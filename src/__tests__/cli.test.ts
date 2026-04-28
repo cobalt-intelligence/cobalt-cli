@@ -23,14 +23,25 @@ function run(args: string[], env: Record<string, string> = {}): Promise<RunResul
     });
     let stdout = '';
     let stderr = '';
-    proc.stdout.on('data', (c) => (stdout += c.toString()));
-    proc.stderr.on('data', (c) => (stderr += c.toString()));
-    proc.on('error', reject);
-    proc.on('close', (status) => resolve({ status, stdout, stderr }));
-    setTimeout(() => {
+    // Watchdog must be cleared on close/error so it doesn't keep the test
+    // runner's event loop alive after a quick CLI run finishes. unref() so
+    // even if we somehow miss clearing it, the process can still exit.
+    const timeout = setTimeout(() => {
       proc.kill('SIGKILL');
       reject(new Error('CLI subprocess timed out'));
     }, 10_000);
+    timeout.unref?.();
+    const clearWatchdog = () => clearTimeout(timeout);
+    proc.stdout.on('data', (c) => (stdout += c.toString()));
+    proc.stderr.on('data', (c) => (stderr += c.toString()));
+    proc.on('error', (err) => {
+      clearWatchdog();
+      reject(err);
+    });
+    proc.on('close', (status) => {
+      clearWatchdog();
+      resolve({ status, stdout, stderr });
+    });
   });
 }
 
