@@ -33,9 +33,9 @@ cobalt full-verification wait <searchGuid>
 ## Install
 
 ```bash
-npm install -g @cobalt-intelligence/cli
+npm install -g @cobaltintelligence/cli
 # or run on demand:
-npx @cobalt-intelligence/cli sos search "Acme" --state UT
+npx @cobaltintelligence/cli sos search "Acme" --state UT
 ```
 
 Requires Node.js 18+.
@@ -47,7 +47,7 @@ Get your API key from the [Cobalt dashboard](https://cobaltintelligence.com), th
 ```bash
 cobalt auth login            # interactive prompt, stored under your OS user config
 # or
-export COBALT_API_KEY="ci_..."   # env var wins; ideal for CI / agents
+export COBALT_API_KEY="***"   # env var wins; ideal for CI / agents
 ```
 
 Verify:
@@ -157,7 +157,7 @@ The CLI is designed to be a first-class tool for autonomous coding agents and sh
 3. For long-running SOS lookups, use `--async` and store the `retryId`; resume with `cobalt sos retry`.
 4. Store the API key in `COBALT_API_KEY` rather than in config files — easier to rotate and scope.
 
-A companion MCP server (`@cobalt-intelligence/mcp-server`) is on the roadmap. Until it ships, exposing this CLI as a tool to your agent is the recommended path.
+A companion MCP server (`@cobaltintelligence/mcp-server`) is on the roadmap. Until it ships, exposing this CLI as a tool to your agent is the recommended path.
 
 ## Development
 

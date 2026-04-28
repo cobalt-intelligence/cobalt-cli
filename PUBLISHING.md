@@ -1,15 +1,15 @@
 # Publishing checklist
 
-This document captures the one-time setup and the per-release steps for publishing `@cobalt-intelligence/cli` to npm.
+This document captures the one-time setup and the per-release steps for publishing `@cobaltintelligence/cli` to npm.
 
 ## One-time setup
 
 ### 1. Create the npm scope
 
-If the `@cobalt-intelligence` org doesn't exist on npm yet:
+If the `@cobaltintelligence` org doesn't exist on npm yet:
 
 1. Sign in (or create) the org owner npm account at <https://www.npmjs.com/signup>.
-2. Create the org: <https://www.npmjs.com/org/create> → name `cobalt-intelligence`.
+2. Create the org: <https://www.npmjs.com/org/create> → name `cobaltintelligence` (matches your existing npm org).
 3. Choose the **free public-package** tier (private packages need a paid plan).
 4. Add team members as needed.
 
@@ -18,13 +18,13 @@ If the `@cobalt-intelligence` org doesn't exist on npm yet:
 For local manual publishing (rare):
 
 ```bash
-npm login --scope=@cobalt-intelligence
+npm login --scope=@cobaltintelligence
 ```
 
 For CI publishing (preferred):
 
-1. <https://www.npmjs.com/settings/cobalt-intelligence/tokens> → **Generate New Token** → **Granular Access Token**
-2. Scope: packages → `@cobalt-intelligence/*` → read+write.
+1. <https://www.npmjs.com/settings/cobaltintelligence/tokens> → **Generate New Token** → **Granular Access Token**
+2. Scope: packages → `@cobaltintelligence/*` → read+write.
 3. Save it to GitHub: repo → Settings → Secrets and variables → Actions → New repo secret → name `NPM_TOKEN`.
 
 ### 3. Verify the package looks right
@@ -43,7 +43,7 @@ Then a real local pack and install:
 
 ```bash
 npm pack
-npm install -g ./cobalt-intelligence-cli-0.1.0.tgz
+npm install -g ./cobaltintelligence-cli-0.1.0.tgz
 cobalt --version
 cobalt --help
 ```
@@ -95,8 +95,8 @@ Pre-1.0 (`0.x`), we may break things in minor versions — but document loudly i
 
 ## After publishing
 
-- [ ] Verify `npm view @cobalt-intelligence/cli` shows the new version
-- [ ] `npx @cobalt-intelligence/cli --version` works
+- [ ] Verify `npm view @cobaltintelligence/cli` shows the new version
+- [ ] `npx @cobaltintelligence/cli --version` works
 - [ ] Update `documentation.cobaltintelligence.com` with the install one-liner
 - [ ] Tweet / announce in #dev-tools
 - [ ] Add to the [MCP / dev-tools registry](https://mcp.so) once the MCP server ships
