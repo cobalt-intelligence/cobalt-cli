@@ -56,6 +56,25 @@ Verify:
 cobalt auth status
 ```
 
+## What if my CLI crashes or times out mid-search?
+
+Every Cobalt SOS search consumes a credit, even when the API has to fall back to a `retryId` (when a state's lookup takes longer than ~30s). To make sure you can always recover the result you paid for, the CLI:
+
+1. **Prints the retryId to stderr the moment it's issued** — before any polling starts
+2. **Persists it to disk** at `~/.config/cobalt-cli-nodejs/pending/<retryId>.json`
+3. **Surfaces it on Ctrl+C** with the exact command to recover
+4. **Includes `retryId` as a structured field in the TIMEOUT error envelope**
+
+If something goes wrong, recovery is one command:
+
+```bash
+cobalt sos pending             # see all outstanding retryIds
+cobalt sos retry <retryId>     # fetch the result
+cobalt sos pending clear <id>  # forget one (does not affect the server)
+```
+
+This means **no Cobalt search you've paid for is ever unrecoverable** — even if your laptop reboots mid-poll.
+
 ## Command reference
 
 ### `cobalt sos` — Secretary of State
@@ -65,6 +84,8 @@ cobalt auth status
 | `cobalt sos search <query> --state <st>` | Search by business name. Add `--first-name`/`--last-name` to search by person, or `--sos-id` for direct lookup. |
 | `cobalt sos get <sosId> --state <st>` | Direct entity-id fetch. |
 | `cobalt sos retry <retryId>` | Resume a previously-started long-running lookup. |
+| `cobalt sos pending` | List retryIds saved on disk that haven't completed yet. |
+| `cobalt sos pending clear <retryId>` | Forget a saved retryId (server-side state untouched). |
 
 Useful flags: `--cached` (use cached not live), `--screenshot`, `--ucc`, `--related`, `--street/--city/--zip` (AND-filter), `--test complete` (dummy data, no charge), `--callback-url`, `--async` (don't poll, return retryId).
 

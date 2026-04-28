@@ -10,9 +10,11 @@ import { Command } from 'commander';
 import { CobaltClient } from '../lib/client';
 import { emit, envelope } from '../lib/output';
 import { getGlobals, pickFormat } from '../lib/globalOptions';
-import { getDefaultState } from '../lib/config';
+import { getDefaultState, getEndpoint } from '../lib/config';
 import { CobaltError } from '../lib/errors';
 import { pollSosRetry } from '../lib/poll';
+import { savePending, clearPending, listPending, pendingDirPath } from '../lib/pending';
+import chalk from 'chalk';
 
 export function registerSosCommands(program: Command): void {
   const sos = program
@@ -91,25 +93,84 @@ export function registerSosCommands(program: Command): void {
       const status = String(body?.status || '').toLowerCase();
       const incomplete = retryId && (status === 'incomplete' || status === 'pending');
 
-      if (incomplete && opts.async) {
-        emit(
-          envelope(body, { state, mode: 'async', retryId }),
-          { format: pickFormat(g), quiet: g.quiet }
-        );
-        return;
-      }
+      // CRITICAL: surface and persist the retryId IMMEDIATELY, before polling.
+      // The user has already been charged for this search; if the CLI process
+      // dies (Ctrl+C, network drop, timeout), the retryId is the only way to
+      // recover the result. Always print it to stderr and write it to disk so
+      // `cobalt sos pending` can find it later.
+      if (retryId) {
+        const entry = {
+          retryId,
+          state,
+          query: { ...params },
+          startedAt: new Date().toISOString(),
+          endpoint: g.endpoint || getEndpoint(),
+        };
+        const file = savePending(entry);
+        const tty = process.stderr.isTTY;
+        const msg = tty
+          ? chalk.yellow(`! retryId issued: ${retryId}\n  recover with: cobalt sos retry ${retryId}\n  saved to: ${file}\n`)
+          : `# retryId=${retryId} saved=${file}\n`;
+        process.stderr.write(msg);
 
-      if (incomplete) {
-        const final = await pollSosRetry(client, retryId, {
-          intervalMs: Number(opts.pollInterval),
-          maxAttempts: Number(opts.pollMax),
-          screenshot: opts.screenshot,
-          onTick: (n) => {
-            if (g.verbose) process.stderr.write(`… polling retryId=${retryId} (attempt ${n})\n`);
-          },
-        });
-        emit(envelope(final, { state, polled: true, retryId }), { format: pickFormat(g), quiet: g.quiet });
-        return;
+        // Surface retryId via Ctrl+C too — handler removes itself once we
+        // either resolve or fail.
+        const onSigint = () => {
+          process.stderr.write(
+            (tty ? chalk.yellow : (s: string) => s)(
+              `\n! interrupted — retryId ${retryId} is saved. Resume with:\n  cobalt sos retry ${retryId}\n`
+            )
+          );
+          process.exit(130);
+        };
+        process.on('SIGINT', onSigint);
+        // Make sure async/non-async paths below clean up.
+        const cleanup = () => process.removeListener('SIGINT', onSigint);
+
+        if (incomplete && opts.async) {
+          cleanup();
+          emit(
+            envelope(body, { state, mode: 'async', retryId, pendingFile: file }),
+            { format: pickFormat(g), quiet: g.quiet }
+          );
+          return;
+        }
+
+        if (incomplete) {
+          try {
+            const final = await pollSosRetry(client, retryId, {
+              intervalMs: Number(opts.pollInterval),
+              maxAttempts: Number(opts.pollMax),
+              screenshot: opts.screenshot,
+              onTick: (n) => {
+                if (g.verbose) process.stderr.write(`… polling retryId=${retryId} (attempt ${n})\n`);
+              },
+            });
+            cleanup();
+            clearPending(retryId);
+            emit(envelope(final, { state, polled: true, retryId }), {
+              format: pickFormat(g),
+              quiet: g.quiet,
+            });
+            return;
+          } catch (err) {
+            cleanup();
+            // Re-throw with retryId attached so the user (and any agent) knows
+            // exactly how to recover. The pending file stays on disk.
+            if (err instanceof CobaltError && err.code === 'TIMEOUT') {
+              throw new CobaltError(
+                'TIMEOUT',
+                `Live SOS lookup timed out. Recover with: cobalt sos retry ${retryId}`,
+                { retryId, pendingFile: file }
+              );
+            }
+            throw err;
+          }
+        }
+        // Synchronous-complete responses with a retryId are unusual but
+        // defensible — clear the pending entry since the data is in hand.
+        cleanup();
+        clearPending(retryId);
       }
 
       emit(envelope(body, { state }), { format: pickFormat(g), quiet: g.quiet });
@@ -144,10 +205,46 @@ export function registerSosCommands(program: Command): void {
       const body = res.data;
       const retryId = body?.retryId;
       const status = String(body?.status || '').toLowerCase();
-      if (retryId && (status === 'incomplete' || status === 'pending')) {
-        const final = await pollSosRetry(client, retryId, { screenshot: opts.screenshot });
-        emit(envelope(final, { state: opts.state, polled: true, retryId }), { format: pickFormat(g), quiet: g.quiet });
-        return;
+      if (retryId) {
+        const file = savePending({
+          retryId,
+          state: opts.state,
+          query: { sosId, ...params },
+          startedAt: new Date().toISOString(),
+          endpoint: g.endpoint || getEndpoint(),
+        });
+        const tty = process.stderr.isTTY;
+        process.stderr.write(
+          tty
+            ? chalk.yellow(`! retryId issued: ${retryId}\n  recover with: cobalt sos retry ${retryId}\n  saved to: ${file}\n`)
+            : `# retryId=${retryId} saved=${file}\n`
+        );
+        const onSigint = () => {
+          process.stderr.write(`\n! interrupted — retryId ${retryId} is saved.\n`);
+          process.exit(130);
+        };
+        process.on('SIGINT', onSigint);
+        if (status === 'incomplete' || status === 'pending') {
+          try {
+            const final = await pollSosRetry(client, retryId, { screenshot: opts.screenshot });
+            process.removeListener('SIGINT', onSigint);
+            clearPending(retryId);
+            emit(envelope(final, { state: opts.state, polled: true, retryId }), { format: pickFormat(g), quiet: g.quiet });
+            return;
+          } catch (err) {
+            process.removeListener('SIGINT', onSigint);
+            if (err instanceof CobaltError && err.code === 'TIMEOUT') {
+              throw new CobaltError(
+                'TIMEOUT',
+                `Live SOS lookup timed out. Recover with: cobalt sos retry ${retryId}`,
+                { retryId, pendingFile: file }
+              );
+            }
+            throw err;
+          }
+        }
+        process.removeListener('SIGINT', onSigint);
+        clearPending(retryId);
       }
       emit(envelope(body, { state: opts.state }), { format: pickFormat(g), quiet: g.quiet });
     });
@@ -171,10 +268,38 @@ export function registerSosCommands(program: Command): void {
           retryId,
           screenshot: opts.screenshot || undefined,
         });
-        emit(envelope(res.data, { retryId }), { format: pickFormat(g), quiet: g.quiet });
+        const status = String(res.data?.status || '').toLowerCase();
+        const terminal = status && status !== 'incomplete' && status !== 'pending';
+        if (terminal) clearPending(retryId);
+        emit(envelope(res.data, { retryId, terminalStatus: terminal }), { format: pickFormat(g), quiet: g.quiet });
         return;
       }
       const final = await pollSosRetry(client, retryId, { screenshot: opts.screenshot });
+      clearPending(retryId);
       emit(envelope(final, { retryId, polled: true }), { format: pickFormat(g), quiet: g.quiet });
+    });
+
+  // ---- pending (list / forget retryIds saved on disk) ----
+  const pending = sos.command('pending').description('List or clear retryIds persisted to disk');
+
+  pending
+    .command('list', { isDefault: true })
+    .description('List outstanding retryIds you can recover with `cobalt sos retry`')
+    .action(() => {
+      const g = getGlobals(sos);
+      const entries = listPending();
+      emit(envelope(entries, { count: entries.length, dir: pendingDirPath() }), {
+        format: pickFormat(g),
+        quiet: g.quiet,
+      });
+    });
+
+  pending
+    .command('clear <retryId>')
+    .description('Forget a saved retryId (does not affect the server)')
+    .action((retryId: string) => {
+      const g = getGlobals(sos);
+      clearPending(retryId);
+      emit(envelope({ ok: true, removed: retryId }, {}), { format: pickFormat(g), quiet: g.quiet });
     });
 }

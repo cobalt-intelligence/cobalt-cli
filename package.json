@@ -1,6 +1,6 @@
 {
   "name": "@cobaltintelligence/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official Cobalt Intelligence CLI — Secretary of State, OFAC, TIN, and full-verification lookups from your terminal.",
   "keywords": [
     "cobalt",
