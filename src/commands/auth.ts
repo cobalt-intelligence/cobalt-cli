@@ -5,6 +5,7 @@ import { CobaltClient } from '../lib/client';
 import { emit, envelope } from '../lib/output';
 import { getGlobals, pickFormat } from '../lib/globalOptions';
 import { ONBOARDING_URLS, onboardingHint } from '../lib/onboarding';
+import { getRateLimits } from '../lib/rateLimits';
 
 export function registerAuthCommands(program: Command): void {
   const auth = program.command('auth').description('Manage API key and authentication');
@@ -78,6 +79,7 @@ export function registerAuthCommands(program: Command): void {
           authenticated: true,
           keyPreview: `${key.slice(0, 4)}…${key.slice(-4)}`,
           endpoint: getEndpoint(),
+          rate_limits: getRateLimits(),
         }, {}, null),
         { format: pickFormat(g), quiet: g.quiet }
       );
@@ -93,6 +95,7 @@ export function registerAuthCommands(program: Command): void {
           {
             ...ONBOARDING_URLS,
             human_action: onboardingHint('NO_API_KEY').human_action,
+            rate_limits: getRateLimits(),
           },
           {},
           null

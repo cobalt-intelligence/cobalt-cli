@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-01
+
+### Added
+- **Concurrency / rate-limit guidance for AI agents.** The Cobalt API accepts very high request rates, but upstream Secretary-of-State scrapers have practical concurrency ceilings. Agents that fan out aggressively see ballooning latency, not errors — because requests are *queued*, not rejected. This release surfaces the recommended ceilings everywhere an agent looks:
+  - New `cobalt limits` command — prints recommended concurrency limits and guidance as a JSON envelope.
+  - `cobalt auth status` now includes a `rate_limits` block alongside the auth info.
+  - `cobalt auth urls` adds `rate_limits` to its onboarding payload.
+  - Every `error.details.onboarding` hint (NO_API_KEY / UNAUTHORIZED / SETUP_REQUIRED) now includes `rate_limits`, so an agent always sees the guidance the first time it hits an auth wall.
+- Defaults: **2 concurrent per state, 5 concurrent per account**, queue-on-overflow.
+- Environment overrides: `COBALT_MAX_CONCURRENT_PER_STATE`, `COBALT_MAX_CONCURRENT_PER_ACCOUNT` for staging or custom-tier customers.
+- 3 new tests covering the new command, env overrides, and embedding inside onboarding hints (42 tests total).
+
+### Why
+We were seeing AI-agent-driven workloads stack 20+ concurrent requests against a single state, then complaining about latency. The right answer is "queue locally at 2/state, 5/account" — but agents had no way to discover that. Now every entry point (auth status, error envelopes, dedicated `limits` command) tells them.
+
 ## [0.3.1] - 2026-04-28
 
 ### Fixed

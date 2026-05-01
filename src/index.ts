@@ -9,6 +9,7 @@ import { registerOfacCommands } from './commands/ofac';
 import { registerTinCommands } from './commands/tin';
 import { registerFullVerificationCommands } from './commands/fullVerification';
 import { registerConfigCommands } from './commands/config';
+import { registerLimitsCommand } from './commands/limits';
 import { addGlobalOptions } from './lib/globalOptions';
 import { handleError } from './lib/errors';
 
@@ -32,6 +33,7 @@ registerSosCommands(program);
 registerOfacCommands(program);
 registerTinCommands(program);
 registerFullVerificationCommands(program);
+registerLimitsCommand(program);
 
 program.showHelpAfterError('(run `cobalt --help` for usage)');
 
