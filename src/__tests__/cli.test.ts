@@ -125,6 +125,42 @@ describe('CLI integration', () => {
     assert.ok(env.error.details?.onboarding);
   });
 
+  it('limits command emits default concurrency guidance', async () => {
+    const r = await run(['limits', '--format', 'json']);
+    assert.equal(r.status, 0);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.data.max_concurrent_per_state, 2);
+    assert.equal(env.data.max_concurrent_per_account, 5);
+    assert.equal(env.data.over_limit_behavior, 'queue');
+    assert.match(env.data.guidance, /concurrent/i);
+    assert.match(env.data.guidance, /retryId/);
+    assert.match(env.data.summary, /2 per state/);
+    assert.match(env.data.summary, /5 per account/);
+  });
+
+  it('limits honors COBALT_MAX_CONCURRENT_PER_STATE / _PER_ACCOUNT overrides', async () => {
+    const r = await run(['limits', '--format', 'json'], {
+      COBALT_MAX_CONCURRENT_PER_STATE: '4',
+      COBALT_MAX_CONCURRENT_PER_ACCOUNT: '12',
+    });
+    assert.equal(r.status, 0);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.data.max_concurrent_per_state, 4);
+    assert.equal(env.data.max_concurrent_per_account, 12);
+  });
+
+  it('NO_API_KEY error envelope embeds rate_limits inside the onboarding hint', async () => {
+    const r = await run(['sos', 'search', 'Acme', '--state', 'UT', '--format', 'json'], {
+      COBALT_API_KEY: '',
+    });
+    assert.equal(r.status, 4);
+    const env = JSON.parse(r.stdout);
+    const rl = env.error.details?.onboarding?.rate_limits;
+    assert.ok(rl, 'rate_limits should be embedded in onboarding hint');
+    assert.equal(rl.max_concurrent_per_state, 2);
+    assert.equal(rl.max_concurrent_per_account, 5);
+  });
+
   it('exits 5 with BAD_REQUEST when neither query nor identity flags are given', async () => {
     const r = await run(['sos', 'search', '--state', 'UT', '--format', 'json'], {
       COBALT_API_KEY: 'k',

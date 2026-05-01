@@ -8,6 +8,8 @@
  * Override at runtime via env vars to point at staging/internal hosts:
  *   COBALT_SIGNUP_URL, COBALT_KEY_URL, COBALT_DOCS_URL, COBALT_SUPPORT_EMAIL
  */
+import { getRateLimits, RateLimits } from './rateLimits';
+
 export const ONBOARDING_URLS = {
   signup: process.env.COBALT_SIGNUP_URL || 'https://app.cobaltintelligence.com/create-account',
   keys: process.env.COBALT_KEY_URL || 'https://app.cobaltintelligence.com/dashboard/quickStart',
@@ -22,6 +24,8 @@ export interface OnboardingHint {
   support_email: string;
   /** Multi-line, copy-pasteable instruction the agent can show its human verbatim. */
   human_action: string;
+  /** Concurrency guidance — present on every onboarding hint so agents always see it. */
+  rate_limits: RateLimits;
 }
 
 const stepsNoKey = (u: typeof ONBOARDING_URLS): string =>
@@ -52,5 +56,6 @@ export function onboardingHint(reason: 'NO_API_KEY' | 'UNAUTHORIZED'): Onboardin
     docs_url: u.docs,
     support_email: u.support,
     human_action: reason === 'NO_API_KEY' ? stepsNoKey(u) : stepsBadKey(u),
+    rate_limits: getRateLimits(),
   };
 }

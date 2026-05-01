@@ -104,6 +104,25 @@ cobalt sos pending clear <id>  # forget one (does not affect the server)
 
 This means **no Cobalt search you've paid for is ever unrecoverable** — even if your laptop reboots mid-poll.
 
+## Concurrency guidance (for AI agents)
+
+The Cobalt API itself accepts very high request rates, but the upstream Secretary-of-State scrapers have practical concurrency ceilings. **Above the limits, requests are queued — not rejected — but latency grows fast.** Keep your in-flight count at or below:
+
+- **2 concurrent requests per state**
+- **5 concurrent requests per account** (across all states)
+
+A `429` response means the queue itself is saturated; honor `retry_after_seconds`. For long-running searches, prefer `retryId` polling over fanning out more parallel requests.
+
+Read the limits at runtime (e.g. to size your worker pool):
+
+```bash
+cobalt limits --format json
+```
+
+The same `rate_limits` block is embedded inside `cobalt auth status` and inside every `error.details.onboarding` hint, so agents always see the guidance the first time they hit an auth wall.
+
+Override the defaults locally (staging, custom tiers) with `COBALT_MAX_CONCURRENT_PER_STATE` and `COBALT_MAX_CONCURRENT_PER_ACCOUNT`.
+
 ## Command reference
 
 ### `cobalt sos` — Secretary of State
