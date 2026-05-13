@@ -274,6 +274,62 @@ describe('CLI integration', () => {
     assert.equal(body.businessName, 'Acme');
   });
 
+  it('full-verification status GETs /fullVerification with businessStatusCheck + searchGuid in query', async () => {
+    server.requests.length = 0;
+    server.on('/fullVerification', () => ({
+      status: 200,
+      body: { status: 'complete', searchGuid: 'acme#guid', results: [] },
+    }));
+    const r = await run(
+      ['fv', 'status', 'acme#guid', '--format', 'json'],
+      { COBALT_API_KEY: 'k', COBALT_ENDPOINT: server.url }
+    );
+    assert.equal(r.status, 0, `stderr: ${r.stderr}`);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.data.status, 'complete');
+    assert.equal(env.meta.searchGuid, 'acme#guid');
+    const last = server.requests.at(-1)!;
+    assert.equal(last.method, 'GET');
+    assert.equal(last.body, '');
+    assert.match(last.url, /action=businessStatusCheck/);
+    // searchGuid contains '#', which axios percent-encodes to %23
+    assert.match(last.url, /searchGuid=acme%23guid/);
+  });
+
+  it('full-verification wait polls via GET until terminal status', async () => {
+    server.requests.length = 0;
+    let calls = 0;
+    server.on('/fullVerification', () => {
+      calls += 1;
+      // First poll: still running. Second: complete.
+      if (calls < 2) {
+        return { status: 200, body: { status: 'incomplete', searchGuid: 'acme#guid' } };
+      }
+      return {
+        status: 200,
+        body: { status: 'complete', searchGuid: 'acme#guid', results: [{ state: 'UT' }] },
+      };
+    });
+    const r = await run(
+      ['fv', 'wait', 'acme#guid', '--interval', '10', '--max', '5', '--format', 'json'],
+      { COBALT_API_KEY: 'k', COBALT_ENDPOINT: server.url }
+    );
+    assert.equal(r.status, 0, `stderr: ${r.stderr}`);
+    const env = JSON.parse(r.stdout);
+    assert.equal(env.data.status, 'complete');
+    assert.equal(env.meta.polled, true);
+    assert.equal(env.meta.attempts, 2);
+    assert.equal(calls, 2);
+    // Every poll must be a GET carrying the right action/guid query params.
+    const polls = server.requests.filter((req) => req.url.startsWith('/fullVerification'));
+    assert.equal(polls.length, 2);
+    for (const req of polls) {
+      assert.equal(req.method, 'GET');
+      assert.match(req.url, /action=businessStatusCheck/);
+      assert.match(req.url, /searchGuid=acme%23guid/);
+    }
+  });
+
   it('exits 3 with RATE_LIMITED on 429', async () => {
     server.on('/ofac', () => ({
       status: 429,
