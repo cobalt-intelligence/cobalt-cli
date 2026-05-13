@@ -1,15 +1,12 @@
 /**
  * Full Verification (50 states + DC):
- *   POST /fullVerification  { action: "initVerification", ... }
+ *   POST /fullVerification           { action: "initVerification", ... }
+ *   GET  /fullVerification?action=businessStatusCheck&searchGuid=<guid>
  *
  * The API issues a `searchGuid` you can then poll. We expose:
  *   cobalt full-verification start   — kicks off the job
- *   cobalt full-verification status  — polls (POST with action: "checkStatus")
+ *   cobalt full-verification status  — GET with action=businessStatusCheck
  *   cobalt full-verification wait    — auto-polls until terminal state
- *
- * NOTE: The status/poll action name is inferred from common Cobalt patterns
- * ("checkStatus") but isn't shown in the public docs. If it differs in
- * production, override with --status-action.
  */
 import { Command } from 'commander';
 import { CobaltClient } from '../lib/client';
@@ -74,7 +71,7 @@ export function registerFullVerificationCommands(program: Command): void {
   fv
     .command('status <searchGuid>')
     .description('Check status of a full-verification run')
-    .option('--status-action <name>', 'Override the status action name', 'checkStatus')
+    .option('--status-action <name>', 'Override the status action name', 'businessStatusCheck')
     .action(async (searchGuid: string, opts) => {
       const g = getGlobals(fv);
       const client = new CobaltClient({
@@ -83,7 +80,7 @@ export function registerFullVerificationCommands(program: Command): void {
         timeoutMs: Number(g.timeout) || undefined,
         verbose: g.verbose,
       });
-      const res = await client.post<any>('/fullVerification', {
+      const res = await client.get<any>('/fullVerification', {
         action: opts.statusAction,
         searchGuid,
       });
@@ -95,7 +92,7 @@ export function registerFullVerificationCommands(program: Command): void {
     .description('Poll a full-verification run until it completes')
     .option('--interval <ms>', 'Poll interval', '15000')
     .option('--max <attempts>', 'Max poll attempts', '120')
-    .option('--status-action <name>', 'Override the status action name', 'checkStatus')
+    .option('--status-action <name>', 'Override the status action name', 'businessStatusCheck')
     .action(async (searchGuid: string, opts) => {
       const g = getGlobals(fv);
       const client = new CobaltClient({
@@ -107,7 +104,7 @@ export function registerFullVerificationCommands(program: Command): void {
       const interval = Number(opts.interval);
       const max = Number(opts.max);
       for (let i = 1; i <= max; i++) {
-        const res = await client.post<any>('/fullVerification', {
+        const res = await client.get<any>('/fullVerification', {
           action: opts.statusAction,
           searchGuid,
         });

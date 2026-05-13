@@ -4,16 +4,13 @@ on:
     branches: [master]
   pull_request:
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run build
