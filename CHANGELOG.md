@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-13
+
+### Fixed
+- **`cobalt fv status` and `cobalt fv wait` now actually work.** Previously both returned `"action is required"` from the server. Two bugs:
+  - The CLI sent `action: "checkStatus"` (a guess — the original source comment admitted it was inferred and not in the public docs). The server has no such branch and fell through to its 400 handler.
+  - Status polling is a `GET` with query-string params, not a `POST` with a JSON body. The full-business-verification lambda reads `searchGuid` from `event.queryStringParameters`, so even renaming the action wasn't enough.
+- The correct contract is `GET /fullVerification?action=businessStatusCheck&searchGuid=<guid>`. The CLI now does this. The `--status-action` override default is updated to `businessStatusCheck`.
+
+### Why this mattered
+A customer could `cobalt fv start` (and get billed for kicking off a 50-state verification) but had no working way to retrieve the result via the CLI — only the `--callback-url` webhook path worked. Flagged by Shela's team while writing the Cobalt CLI blog post.
+
 ## [0.4.0] - 2026-05-01
 
 ### Added
